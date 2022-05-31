@@ -4,10 +4,10 @@ console script. To run this script uncomment the following lines in the
 ``[options.entry_points]`` section in ``setup.cfg``::
 
     console_scripts =
-         fibonacci = domain_suffixes.skeleton:run
+         get_tld = domain_suffixes.skeleton:run
 
 Then run ``pip install .`` (or ``pip install -e .`` for editable mode)
-which will install the command ``fibonacci`` inside your current environment.
+which will install the following commands inside your current environment.
 
 Besides console scripts, the header (i.e. until ``_logger``...) of this file can
 also be used as template for Python modules.
@@ -30,30 +30,22 @@ __author__ = "John Conwell"
 __copyright__ = "John Conwell"
 __license__ = "MIT"
 
+from domain_suffixes.suffixes import Suffixes
+
 _logger = logging.getLogger(__name__)
 
 
 # ---- Python API ----
 # The functions defined in this section can be imported by users in their
 # Python scripts/interactive interpreter, e.g. via
-# `from domain_suffixes.skeleton import fib`,
+# `from domain_suffixes.skeleton import get_tld`,
 # when using this Python module as a library.
 
-
-def fib(n):
-    """Fibonacci example function
-
-    Args:
-      n (int): integer
-
-    Returns:
-      int: n-th Fibonacci number
-    """
-    assert n > 0
-    a, b = 1, 1
-    for _i in range(n - 1):
-        a, b = b, a + b
-    return a
+def get_tld(fqdn):
+    """ return the longest known TLD/suffix for a FQDN """
+    suffixes = Suffixes()
+    suffix = suffixes.get_tld(fqdn)
+    return suffix
 
 
 # ---- CLI ----
@@ -72,13 +64,18 @@ def parse_args(args):
     Returns:
       :obj:`argparse.Namespace`: command line parameters namespace
     """
-    parser = argparse.ArgumentParser(description="Just a Fibonacci demonstration")
+    parser = argparse.ArgumentParser(description="Parse FQDNs to return the TLD or longest known public domain suffix")
     parser.add_argument(
         "--version",
         action="version",
         version="domain_suffixes {ver}".format(ver=__version__),
     )
-    parser.add_argument(dest="n", help="n-th Fibonacci number", type=int, metavar="INT")
+    parser.add_argument(
+        dest="fqdn",
+        help="return the tld for the fqdn",
+        type=str,
+        metavar="STR"
+    )
     parser.add_argument(
         "-v",
         "--verbose",
@@ -111,9 +108,9 @@ def setup_logging(loglevel):
 
 
 def main(args):
-    """Wrapper allowing :func:`fib` to be called with string arguments in a CLI fashion
+    """Wrapper allowing :func:`get_tld` to be called with string arguments in a CLI fashion
 
-    Instead of returning the value from :func:`fib`, it prints the result to the
+    Instead of returning the value from :func:`get_tld`, it prints the result to the
     ``stdout`` in a nicely formatted message.
 
     Args:
@@ -122,25 +119,15 @@ def main(args):
     """
     args = parse_args(args)
     setup_logging(args.loglevel)
-    _logger.debug("Starting crazy calculations...")
-    print("The {}-th Fibonacci number is {}".format(args.n, fib(args.n)))
-    _logger.info("Script ends here")
+    _logger.debug("Starting TLD parser")
+    print(f"The tld for {args.fqdn} is {get_tld(args.fqdn)}")
 
 
 def run():
-    """Calls :func:`main` passing the CLI arguments extracted from :obj:`sys.argv`
-
-    This function can be used as entry point to create console scripts with setuptools.
-    """
     main(sys.argv[1:])
 
 
 if __name__ == "__main__":
-    # ^  This is a guard statement that will prevent the following code from
-    #    being executed in the case someone imports this file instead of
-    #    executing it as a script.
-    #    https://docs.python.org/3/library/__main__.html
-
     # After installing your project with pip, users can also run your Python
     # modules as scripts via the ``-m`` flag, as defined in PEP 338::
     #

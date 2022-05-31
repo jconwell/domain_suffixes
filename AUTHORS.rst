@@ -2,4 +2,4 @@
 Contributors
 ============
 
-* John Conwell <john.conwell@gigamon.com>
+* John Conwell <john@iamjohn.me>

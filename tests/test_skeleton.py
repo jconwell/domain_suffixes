@@ -1,25 +1,23 @@
 import pytest
 
-from domain_suffixes.skeleton import fib, main
+from domain_suffixes.skeleton import get_tld, main
 
 __author__ = "John Conwell"
 __copyright__ = "John Conwell"
 __license__ = "MIT"
 
 
-def test_fib():
+def test_get_tld():
     """API Tests"""
-    assert fib(1) == 1
-    assert fib(2) == 1
-    assert fib(7) == 13
-    with pytest.raises(AssertionError):
-        fib(-10)
+    assert get_tld("stuff.com") == "com"
+    assert get_tld("stuff.co.uk") == "co.uk"
+    assert get_tld("stuff.nottld") is None
 
 
 def test_main(capsys):
     """CLI Tests"""
     # capsys is a pytest fixture that allows asserts against stdout/stderr
     # https://docs.pytest.org/en/stable/capture.html
-    main(["7"])
+    main(["stuff.com"])
     captured = capsys.readouterr()
-    assert "The 7-th Fibonacci number is 13" in captured.out
+    assert "com" in captured.out
