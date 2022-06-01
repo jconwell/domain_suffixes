@@ -1,49 +1,43 @@
-.. These are examples of badges you might want to add to your README:
-   please update the URLs accordingly
-
-    .. image:: https://api.cirrus-ci.com/github/<USER>/domain_suffixes.svg?branch=main
-        :alt: Built Status
-        :target: https://cirrus-ci.com/github/<USER>/domain_suffixes
-    .. image:: https://readthedocs.org/projects/domain_suffixes/badge/?version=latest
-        :alt: ReadTheDocs
-        :target: https://domain_suffixes.readthedocs.io/en/stable/
-    .. image:: https://img.shields.io/coveralls/github/<USER>/domain_suffixes/main.svg
-        :alt: Coveralls
-        :target: https://coveralls.io/r/<USER>/domain_suffixes
-    .. image:: https://img.shields.io/pypi/v/domain_suffixes.svg
-        :alt: PyPI-Server
-        :target: https://pypi.org/project/domain_suffixes/
-    .. image:: https://img.shields.io/conda/vn/conda-forge/domain_suffixes.svg
-        :alt: Conda-Forge
-        :target: https://anaconda.org/conda-forge/domain_suffixes
-    .. image:: https://pepy.tech/badge/domain_suffixes/month
-        :alt: Monthly Downloads
-        :target: https://pepy.tech/project/domain_suffixes
-    .. image:: https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Twitter
-        :alt: Twitter
-        :target: https://twitter.com/domain_suffixes
-
-.. image:: https://img.shields.io/badge/-PyScaffold-005CA0?logo=pyscaffold
-    :alt: Project generated with PyScaffold
-    :target: https://pyscaffold.org/
-
-|
 
 ===============
 domain_suffixes
 ===============
 
 
-    Add a short description here!
+    Library for parsing out domain TLDs from FQDNs
 
+`domain_suffixes` parses the TLD, or longest public suffix, from any fully qualified domain name (FQDN).
 
-A longer description of your project goes here...
+`domain_suffixes` downloads, parses, and merges the latest TLD and public domain suffix information from
+the following IANA and ICANN resources:
 
+- https://www.icann.org/resources/registries/gtlds/v2/gtlds.json
+- https://www.iana.org/domains/root/db
+- https://publicsuffix.org/list/public_suffix_list.dat
 
-.. _pyscaffold-notes:
+----
+How Is This Different Than `tldextract`?
+----
 
-Note
-====
+If all you need is the TLD (or longest public domain suffix) parsed from a FQDN than tldextract will work
+just fine for you. I wrote this library to pull a bit more metadata about each TLD/suffix to use mostly as
+features in machine learning projects.
 
-This project has been set up using PyScaffold 4.2.2. For details and usage
-information on PyScaffold see https://pyscaffold.org/.
+----
+What Extra Metadata Is Included With TLDs?
+----
+
+- TLD name
+- TLD type
+ - sponsored, generic-restricted, generic, country-code, test, infrastructure
+- TLD creation date
+- TLD registry name
+- TLD delegation record URL
+- TLD puny code
+
+----
+TODO
+----
+A lot of the suffixes listed in https://publicsuffix.org/list/public_suffix_list.dat are not actually
+recognized TLDs, but are suffixes used for Dynamic DNS (https://en.wikipedia.org/wiki/Dynamic_DNS).
+At some point I'd like parse that information and to pull out Dynamic DNS suffixes from actual TLDs.
