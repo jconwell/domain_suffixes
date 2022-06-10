@@ -7,6 +7,8 @@ name = "pypi"
 requests = "*"
 bs4 = "*"
 domain-suffixes = {editable = true, path = "."}
+idna = "*"
+unidecode = "*"
 
 [dev-packages]
 tox = "*"
