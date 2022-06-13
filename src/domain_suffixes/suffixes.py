@@ -9,10 +9,18 @@ from dataclasses import dataclass
 import idna
 from unidecode import unidecode
 
+__author__ = "John Conwell"
+__copyright__ = "John Conwell"
+__license__ = "MIT"
+
+from domain_suffixes.trie_structure import _Trie, PUNY_PREFIX
+
 _logger = logging.getLogger(__name__)
 
 ipv4_pattern = re.compile(r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$')
 ipv6_pattern = re.compile(r'(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))')
+# via MS Defender Blog Post
+private_ipv4_pattern = re.compile(r'(^127\.)|(^10\.)|(^172\.1[6-9]\.|^172\.2[0-9]\.|^172\.3[0-1]\.)|(^192\.168\.)')
 
 
 @dataclass
@@ -37,6 +45,8 @@ class ParsedResult:
     registrable_domain_host: str
     fqdn: str
     pqdn: str
+    ipv4: bool = False
+    ipv6: bool = False
 
     def is_tld_multi_part(self):
         return self.tld != self.effective_tld
@@ -59,6 +69,11 @@ class ParsedResult:
         ascii_host = unidecode(unicode_host)
         return ascii_host
 
+    def is_ipv4_private(self):
+        if self.ipv4:
+            return private_ipv4_pattern.match(self.fqdn) is not None
+        return None
+
 
 @dataclass
 class _TLDInfo:
@@ -78,92 +93,6 @@ class _SuffixInfo:
     is_public: bool
     root_suffix: object
     # is_dynamic_dns
-
-
-class _Node:
-    """A node in the trie structure"""
-
-    def __init__(self, label):
-        # the suffix label for this node
-        self.label = label
-
-        # whether this label is the end of a suffix
-        self.is_end = False
-
-        # a dictionary of child labels
-        self.children = {}
-
-        self.is_tld = False
-        self.is_suffix = False
-        self.metadata = None
-
-    def set_metadata(self, metadata):
-        self.metadata = metadata
-        if isinstance(metadata, _TLDInfo):
-            self.is_tld = True
-            self.is_suffix = False
-        elif isinstance(metadata, _SuffixInfo):
-            self.is_tld = False
-            self.is_suffix = True
-            self.is_end = True
-
-
-class _Trie(object):
-    """The trie object"""
-
-    def __init__(self):
-        self.root = _Node("")
-
-    def insert(self, suffix, metadata=None, is_public_suffix=None):
-        """Insert a suffix into the trie"""
-        node = self.root
-        tld_info = None
-
-        # Loop through each label in suffix in reverse order
-        labels = suffix.split(".")[::-1]
-        for label in labels:
-            found_node = node.children.get(label)
-            if found_node:
-                node = found_node
-            else:
-                new_node = _Node(label)
-                node.children[label] = new_node
-                node = new_node
-            if tld_info is None:
-                tld_info = node
-        # add node metadata
-        if is_public_suffix is not None:
-            assert tld_info is not None
-            assert metadata is None
-            metadata = _SuffixInfo(suffix, is_public_suffix, tld_info.metadata)
-        node.set_metadata(metadata)
-
-    def get_node(self, labels):
-        node = self.root
-        labels = labels[::-1]
-        for i, label in enumerate(labels):
-            tmp = node.children.get(label)
-            if tmp:
-                node = tmp
-        if node == self.root:
-            return None
-        return node
-
-    def get_longest_sequence(self, fqdn):
-        """
-        Returns the longest trie sequence found in the trie tree
-        """
-        node = self.root
-        labels = fqdn.split(".")
-        rev_labels = labels[::-1]
-        for i, label in enumerate(rev_labels):
-            if label in node.children:
-                node = node.children[label]
-            else:
-                break
-        if node:
-            return node.metadata, labels[:-i]
-        return None
 
 
 class Suffixes:
@@ -207,8 +136,8 @@ class Suffixes:
         trie = _Trie()
         delegation_link_prefix = "https://www.iana.org"
         revoked_tld = "Not assigned"
-        PUNY_PATTERN = "^https:\/\/www\.iana\.org\/domains\/root\/db\/xn--(.+?)\.html"
-
+        # regex for the IANA URL for idn TLDs
+        PUNY_TLD_PATTERN = "^https:\/\/www\.iana\.org\/domains\/root\/db\/xn--(.+?)\.html"
         response = requests.get(self.tld_list_url)
         if response.status_code != 200:
             raise Exception(f"{self.tld_list_url} error {response.status_code}")
@@ -233,9 +162,9 @@ class Suffixes:
             # only collect active TLDs
             if registry != revoked_tld:
                 # check for punycode TLD (starts with xn--)
-                puny_tld = re.search(PUNY_PATTERN, delegation_link)
+                puny_tld = re.search(PUNY_TLD_PATTERN, delegation_link)
                 if puny_tld:
-                    puny_tld = "xn--" + puny_tld.group(1)
+                    puny_tld = PUNY_PREFIX + puny_tld.group(1)
                 # populate tld info
                 trie.insert(tld, _TLDInfo(tld, puny_tld, delegation_link, tld_type, registry, None))
         return trie
@@ -334,13 +263,19 @@ class Suffixes:
 
     def get_tld(self, fqdn):
         """ Just return the effective TLD for the FQDN """
-        node, _ = self._suffix_trie.get_longest_sequence(fqdn)
+        node, _ = self._suffix_trie.get_longest_sequence(fqdn, self._puny_suffixes)
         if node:
             return node.suffix
         return None
 
-    def parse(self, fqdn):
-        node, labels = self._suffix_trie.get_longest_sequence(fqdn)
+    def parse(self, fqdn, skip_ip_check=False):
+        if not skip_ip_check:
+            if ipv4_pattern.match(fqdn):
+                return self.ip_result(fqdn, True)
+            if ipv6_pattern.match(fqdn):
+                return self.ip_result(fqdn, False)
+
+        node, labels = self._suffix_trie.get_longest_sequence(fqdn, self._puny_suffixes)
         if not node:
             return None
         if isinstance(node, _TLDInfo):
@@ -374,13 +309,29 @@ class Suffixes:
         else:
             raise Exception("Invalid type")
 
+    def ip_result(self, ip, is_ipv4):
+        ret = ParsedResult(None, None, None, None, None, None, None,None, None, None, ip, None)
+        ret.ipv4 = is_ipv4
+        ret.ipv6 = not is_ipv4
+        return ret
+
+def run_test():
+    fqdn = "stuffandthings.com"
+    result = Suffixes(read_cache=True).parse(fqdn)
+    print(result)
+
 
 def main():
-    suffixes = Suffixes(read_cache=True)  # read_cache=False
+    run_test()
+
+    # suffixes = Suffixes(read_cache=True)  # read_cache=False
+    # ret = suffixes.get_tld("stuff.xn--kput3i")
+    # print(ret)
+
     # ret = suffixes.parse("costco.com")
-    ret = suffixes.parse("test.costco.api.someservice.tokyo.jp")
+    # ret = suffixes.parse("test.costco.api.someservice.tokyo.jp")
     # ret = suffixes.parse("costco.commmm")
-    print(ret)
+    # print(ret)
 
 
 if __name__ == "__main__":

@@ -43,8 +43,7 @@ _logger = logging.getLogger(__name__)
 
 def get_tld(fqdn):
     """ return the longest known TLD/suffix for a FQDN """
-    suffixes = Suffixes()
-    suffix = suffixes.get_tld(fqdn)
+    suffix = Suffixes().get_tld(fqdn)
     return suffix
 
 
