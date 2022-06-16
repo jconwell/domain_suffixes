@@ -17,6 +17,10 @@ __license__ = "MIT"
 
 _logger = logging.getLogger(__name__)
 
+# links to iana and icann sources for TLD / suffix information
+TLD_LIST_URL = "https://www.iana.org/domains/root/db"
+SUFFIX_LIST_URL = "https://publicsuffix.org/list/public_suffix_list.dat"
+
 # manually parse all IANA TLD pages and pulled registration dates. This takes quite a while to do
 # so shipping this resource file with the source
 tld_reg_date_resource = "tld_reg_dates_v1.txt"
@@ -133,7 +137,6 @@ class _TLDInfo:
     """  """
     suffix: str
     puny: str
-    delegation_link: str
     tld_type: str
     registry: str
     create_date: str
@@ -158,14 +161,13 @@ class ParsedResult:
     """
     tld: the actual top level domain
     effective_tld: the full public (or private) suffix, which may consist of multiple labels
-    registrable_domain: the domain name plus the effective TLD. Essentially the thing a person purchases from a Registrar
+    registrable_domain: domain name plus the effective TLD. Essentially the thing a person purchases from a Registrar
     registrable_domain_host: the domain name without the effective TLD
     fqdn: fully qualified domain name
     pqdn: partially qualified domain name: all the stuff to the left of the registrable domain
     """
     tld: str
     tld_puny: str
-    tld_delegation_link: str
     tld_type: str
     tld_registry: str
     tld_create_date: str
@@ -192,7 +194,8 @@ class ParsedResult:
         unicode_host = idna.decode(puny_host)
         return self.ascii_ify_unicode(unicode_host)
 
-    def ascii_ify_unicode(self, unicode_host):
+    @staticmethod
+    def ascii_ify_unicode(unicode_host):
         ascii_host = unidecode(unicode_host)
         return ascii_host
 
@@ -203,15 +206,11 @@ class ParsedResult:
 
 
 class Suffixes:
-    # links to iana and icann sources for TLD / suffix information
-    tld_list_url = "https://www.iana.org/domains/root/db"
-    suffix_list_url = "https://publicsuffix.org/list/public_suffix_list.dat"
-
     def __init__(self, read_cache=True, save_cache=True, cache_path="suffix_data.cache"):
         if read_cache and cache_path and os.path.exists(cache_path):
             _logger.info("loading suffix data from cache")
             with open(cache_path, 'rb') as handle:
-                suffix_trie, puny_suffixes  = pickle.load(handle)
+                suffix_trie, puny_suffixes = pickle.load(handle)
             self._suffix_trie = suffix_trie
             self._puny_suffixes = puny_suffixes
         else:
@@ -234,7 +233,8 @@ class Suffixes:
                 with open(cache_path, 'wb') as handle:
                     pickle.dump((self._suffix_trie, self._puny_suffixes), handle)
 
-    def load_tld_create_dates(self):
+    @staticmethod
+    def load_tld_create_dates():
         """
         This resource file was created by parsing the individual IANA TLD pages. This takes way to long
         to do every time the TLD data cache is being rebuilt (and I don't want to piss IANA off), so
@@ -248,20 +248,20 @@ class Suffixes:
             tld_create_dates[parts[0]] = datetime.strptime(parts[1], '%Y-%m-%d').date()
         return tld_create_dates
 
-    def load_all_tlds(self, tld_reg_dates):
+    @staticmethod
+    def load_all_tlds(tld_reg_dates):
         """
         Load all known TLDs from iana. The html page has the TLD
         type and the registry information so I have to parse the html to get the info.
         Yup, totally know this is brittle.
         """
         trie = _Trie()
-        delegation_link_prefix = "https://www.iana.org"
         revoked_tld = "Not assigned"
         # regex for the IANA URL for idn TLDs
-        PUNY_TLD_PATTERN = "^https:\/\/www\.iana\.org\/domains\/root\/db\/xn--(.+?)\.html"
-        response = requests.get(self.tld_list_url)
+        PUNY_TLD_PATTERN = "^\/domains\/root\/db\/xn--(.+?)\.html"
+        response = requests.get(TLD_LIST_URL)
         if response.status_code != 200:
-            raise Exception(f"{self.tld_list_url} error {response.status_code}")
+            raise Exception(f"{TLD_LIST_URL} error {response.status_code}")
 
         soup = BeautifulSoup(response.content, 'html.parser')
         table = soup.find("table", class_="iana-table", id="tld-table")
@@ -273,7 +273,6 @@ class Suffixes:
                 raise Exception("IANA tld html format changed")
             # parse out tld and delegation record link
             link = data[0].find("a")
-            delegation_link = delegation_link_prefix + link["href"]
             # this is brittle, but parsing out the right to left and L2R unicode chars
             tld = link.text.replace(".", "").replace('‏', '').replace('‎', '')
             # parse the TLD type
@@ -283,6 +282,7 @@ class Suffixes:
             # only collect active TLDs
             if registry != revoked_tld:
                 # check for punycode TLD (starts with xn--)
+                delegation_link = link["href"]
                 puny_tld = re.search(PUNY_TLD_PATTERN, delegation_link)
                 if puny_tld:
                     puny_tld = PUNY_PREFIX + puny_tld.group(1)
@@ -291,14 +291,14 @@ class Suffixes:
                 if tld_reg_date is None:
                     _logger.warning(f"Registration date not found for TLD '{tld}' ")
                 # populate tld info
-                trie.insert(tld, _TLDInfo(tld, puny_tld, delegation_link, tld_type, registry, tld_reg_date))
+                trie.insert(tld, _TLDInfo(tld, puny_tld, tld_type, registry, tld_reg_date))
         return trie
 
     def load_manual_tlds(self):
         # add in the onion TLD manually
         tld = "onion"
         self._suffix_trie.insert(tld,
-            _TLDInfo(tld, None, "https://datatracker.ietf.org/doc/html/rfc7686", "host_sufix", "Tor", "2015-09-15"))
+            _TLDInfo(tld, None, "host_suffix", "Tor", "2015-09-15"))
 
     def enrich_tld_suffixes(self):
         """
@@ -307,9 +307,9 @@ class Suffixes:
               by dynamic DNS providers. I need to figure out a way to differentiate the two and add dynamic dns
               as extra metadata on a suffix.
         """
-        response = requests.get(self.suffix_list_url)
+        response = requests.get(SUFFIX_LIST_URL)
         if response.status_code != 200:
-            raise Exception(f"{self.suffix_list_url} error {response.status_code}")
+            raise Exception(f"{SUFFIX_LIST_URL} error {response.status_code}")
         suffix_list = response.content.decode('utf-8')
         suffix_list = suffix_list.split("\n")
 
@@ -341,7 +341,7 @@ class Suffixes:
                     if "// xn--" in previous_line:
                         puny = previous_line[3:]
                         puny = puny[:puny.index(" ")]
-                    self._suffix_trie.insert(suffix, _TLDInfo(suffix, puny, None, "country-code", None, None))
+                    self._suffix_trie.insert(suffix, _TLDInfo(suffix, puny, "country-code", None, None))
 
     # def tld_types(self, counts=False):
     #     """ Return either the distinct set of TLD types or the count of distinct TLD types"""
@@ -359,12 +359,18 @@ class Suffixes:
             return node.suffix
         return None
 
-    def parse(self, fqdn, skip_ip_check=False):
+    def parse(self, fqdn, skip_ip_check=False, skip_protocol_check=True):
         if not skip_ip_check:
             if ipv4_pattern.match(fqdn):
                 return self._ip_result(fqdn, True)
             if ipv6_pattern.match(fqdn):
                 return self._ip_result(fqdn, False)
+
+        # check for protocol prefix
+        if skip_protocol_check is False and "://" in fqdn:
+            print("doing check")
+            index = fqdn.index("://")
+            fqdn = fqdn[index + 3:]
 
         node, labels = self._suffix_trie.get_longest_sequence(fqdn, self._puny_suffixes)
         if not node:
@@ -373,7 +379,6 @@ class Suffixes:
             return ParsedResult(
                 node.suffix,
                 node.puny,
-                node.delegation_link,
                 node.tld_type,
                 node.registry,
                 node.create_date,
@@ -387,7 +392,6 @@ class Suffixes:
             return ParsedResult(
                 node.root_suffix.suffix,
                 node.root_suffix.puny,
-                node.root_suffix.delegation_link,
                 node.root_suffix.tld_type,
                 node.root_suffix.registry,
                 node.root_suffix.create_date,
@@ -400,18 +404,18 @@ class Suffixes:
         else:
             raise Exception("Invalid type")
 
-    def _ip_result(self, ip, is_ipv4):
-        ret = ParsedResult(None, None, None, None, None, None, None,None, None, None, ip, None)
+    @staticmethod
+    def _ip_result(ip, is_ipv4):
+        ret = ParsedResult(None, None, None, None, None, None,None, None, None, ip, None)
         ret.ipv4 = is_ipv4
         ret.ipv6 = not is_ipv4
         return ret
 
 
-
-
 def run_test():
-    fqdn = "stuffandthings.com"
-    result = Suffixes(read_cache=False).parse(fqdn)
+    suffixes = Suffixes(read_cache=True)
+    fqdn = "login.mail.stuffandthings.co.zz"
+    result = suffixes.parse(fqdn)
     print(result)
 
 

@@ -8,15 +8,9 @@ __license__ = "MIT"
 
 """
 Test Ideas:    
-    many dots no tld
-    no dots at all
-    multi level sub domains
-    www prefix
-    parse off the protocol in case passed in
     parse of url arguments in case passed in
     puny code
     ascii-ify puny code: puny_domain = "xn--crdit-agricole-ckb.xn--scurvrification-bnbe.com"
-    skip_ip_check=True
 """
 
 
@@ -39,7 +33,6 @@ def test_parse_ccTLD():
     result = Suffixes(read_cache=True).parse(fqdn)
     assert result.tld == "jp"
     assert result.tld_puny is None
-    assert result.tld_delegation_link == "https://www.iana.org/domains/root/db/jp.html"
     assert result.tld_type == "country-code"
     assert result.tld_registry == "Japan Registry Services Co., Ltd."
     assert result.tld_create_date == datetime.strptime('1986-08-05', '%Y-%m-%d').date()
@@ -57,7 +50,6 @@ def test_parse_gTLD():
     result = Suffixes(read_cache=True).parse(fqdn)
     assert result.tld == "mba"
     assert result.tld_puny is None
-    assert result.tld_delegation_link == "https://www.iana.org/domains/root/db/mba.html"
     assert result.tld_type == "generic"
     assert result.tld_registry == "Binky Moon, LLC"
     assert result.tld_create_date == date(2015, 5, 14)
@@ -82,7 +74,6 @@ def test_parse_ogTLD():
     result = Suffixes(read_cache=True).parse(fqdn)
     assert result.tld == "com"
     assert result.tld_puny is None
-    assert result.tld_delegation_link == "https://www.iana.org/domains/root/db/com.html"
     assert result.tld_type == "generic"
     assert result.tld_registry == "VeriSign Global Registry Services"
     assert result.tld_create_date == datetime.strptime('1985-01-01', '%Y-%m-%d').date()
@@ -95,25 +86,93 @@ def test_parse_ogTLD():
     assert_ip(result)
 
 
-@pytest.mark.skip(reason="stubbing test out to be implemented later")
 def test_parse_multi_label_tld():
-    fqdn = "star-domain.jp"
+    fqdn = "stuffandthings.co.uk"
     result = Suffixes(read_cache=True).parse(fqdn)
-    assert False
+    assert result.tld == "uk"
+    assert result.tld_puny is None
+    assert result.tld_type == "country-code"
+    assert result.tld_registry == "Nominet UK"
+    assert result.tld_create_date == datetime.strptime('1985-07-24', '%Y-%m-%d').date()
+    assert result.effective_tld == "co.uk"
+    assert result.effective_tld_is_public is True
+    assert result.registrable_domain == "stuffandthings.co.uk"
+    assert result.registrable_domain_host == "stuffandthings"
+    assert result.fqdn == fqdn
+    assert result.pqdn == ""
 
 
-@pytest.mark.skip(reason="stubbing test out to be implemented later")
 def test_parse_private_multi_label_tld():
-    fqdn = "star-domain.jp"
+    fqdn = "fake-apple-login.duckdns.org"
     result = Suffixes(read_cache=True).parse(fqdn)
-    assert False
+    assert result.tld == "org"
+    assert result.tld_puny is None
+    assert result.tld_type == "generic"
+    assert result.tld_registry == "Public Interest Registry (PIR)"
+    assert result.tld_create_date == datetime.strptime('1985-01-01', '%Y-%m-%d').date()
+    assert result.effective_tld == "duckdns.org"
+    assert result.effective_tld_is_public is False
+    assert result.registrable_domain == "fake-apple-login.duckdns.org"
+    assert result.registrable_domain_host == "fake-apple-login"
+    assert result.fqdn == fqdn
+    assert result.pqdn == ""
 
 
-@pytest.mark.skip(reason="stubbing test out to be implemented later")
-def test_parse_domain_info():
-    fqdn = "star-domain.jp"
+def test_parse_sub_domain():
+    fqdn = "login.mail.stuffandthings.co.uk"
     result = Suffixes(read_cache=True).parse(fqdn)
-    assert False
+    assert result.tld == "uk"
+    assert result.tld_puny is None
+    assert result.tld_type == "country-code"
+    assert result.tld_registry == "Nominet UK"
+    assert result.tld_create_date == datetime.strptime('1985-07-24', '%Y-%m-%d').date()
+    assert result.effective_tld == "co.uk"
+    assert result.effective_tld_is_public is True
+    assert result.registrable_domain == "stuffandthings.co.uk"
+    assert result.registrable_domain_host == "stuffandthings"
+    assert result.fqdn == fqdn
+    assert result.pqdn == "login.mail"
+
+
+def test_parse_www_prefix():
+    fqdn = "www.stuffandthings.com"
+    result = Suffixes(read_cache=True).parse(fqdn)
+    assert result.tld == "com"
+    assert result.tld_puny is None
+    assert result.tld_type == "generic"
+    assert result.tld_registry == "VeriSign Global Registry Services"
+    assert result.tld_create_date == datetime.strptime('1985-01-01', '%Y-%m-%d').date()
+    assert result.effective_tld == "com"
+    assert result.effective_tld_is_public is True
+    assert result.registrable_domain == "stuffandthings.com"
+    assert result.registrable_domain_host == "stuffandthings"
+    assert result.fqdn == fqdn
+    assert result.pqdn == "www"
+    assert_ip(result)
+
+
+def test_parse_invalid_fqdns():
+    suffixes = Suffixes(read_cache=True)
+    # not a real TLD
+    fqdn = "login.mail.stuffandthings.co.zz"
+    result = suffixes.parse(fqdn)
+    assert result is None
+    # no tld (no periods)
+    fqdn = "loginmailstuffandthingscouk"
+    result = suffixes.parse(fqdn)
+    assert result is None
+
+
+def test_parse_skip_ip_check():
+    suffixes = Suffixes(read_cache=True)
+    # test public IP address
+    fqdn = "65.22.218.1"
+    # test default behavior
+    result = suffixes.parse(fqdn, skip_ip_check=False)
+    assert result is not None
+    # test skipping IP check
+    result = suffixes.parse(fqdn, skip_ip_check=True)
+    assert result is None
 
 
 def test_parse_fqdn_as_ipv4():
@@ -148,6 +207,32 @@ def test_parse_fqdn_as_ipv6():
     assert_ip(result, False)
 
 
+def test_parse_remove_protocol():
+    fqdn = "https://www.stuffandthings.com"
+    # test skipping protocol check
+    result = Suffixes(read_cache=True).parse(fqdn, skip_protocol_check=True)
+    assert result.registrable_domain == "stuffandthings.com"
+    assert result.registrable_domain_host == "stuffandthings"
+    assert result.fqdn == "https://www.stuffandthings.com"
+    assert result.pqdn == "https://www"
+    assert_ip(result)
+    # test with protocol parsing
+    result = Suffixes(read_cache=True).parse(fqdn, skip_protocol_check=False)
+    assert result.registrable_domain == "stuffandthings.com"
+    assert result.registrable_domain_host == "stuffandthings"
+    assert result.fqdn == "www.stuffandthings.com"
+    assert result.pqdn == "www"
+    assert_ip(result)
+    # test check for protocol, but not passed in
+    fqdn = "www.stuffandthings.com"
+    result = Suffixes(read_cache=True).parse(fqdn, skip_protocol_check=False)
+    assert result.registrable_domain == "stuffandthings.com"
+    assert result.registrable_domain_host == "stuffandthings"
+    assert result.fqdn == "www.stuffandthings.com"
+    assert result.pqdn == "www"
+    assert_ip(result)
+
+
 """
 Unit Test Helper Functions
 """
@@ -179,7 +264,6 @@ def assert_ip(result, assert_ipv4=None):
 def assert_ip_result_null_values(result):
     assert result.tld is None
     assert result.tld_puny is None
-    assert result.tld_delegation_link is None
     assert result.tld_type is None
     assert result.tld_registry is None
     assert result.tld_create_date is None
