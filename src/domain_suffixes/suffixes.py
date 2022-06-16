@@ -13,14 +13,144 @@ __author__ = "John Conwell"
 __copyright__ = "John Conwell"
 __license__ = "MIT"
 
-from domain_suffixes.trie_structure import _Trie, PUNY_PREFIX
+# from domain_suffixes.trie_structure import _Trie, PUNY_PREFIX
 
 _logger = logging.getLogger(__name__)
+
+# manually parse all IANA TLD pages and pulled registration dates. This takes quite a while to do
+# so shipping this resource file with the source
+tld_reg_date_resource = "tld_reg_dates_v1.txt"
 
 ipv4_pattern = re.compile(r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$')
 ipv6_pattern = re.compile(r'(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))')
 # via MS Defender Blog Post
 private_ipv4_pattern = re.compile(r'(^127\.)|(^10\.)|(^172\.1[6-9]\.|^172\.2[0-9]\.|^172\.3[0-1]\.)|(^192\.168\.)')
+
+PUNY_PREFIX = "xn--"
+
+##############################
+# Internal API
+##############################
+
+
+def is_puny_code(label):
+    return label[:4] == PUNY_PREFIX
+
+
+class _Node:
+    """A node in the trie structure"""
+
+    def __init__(self, label):
+        # the suffix label for this node
+        self.label = label
+
+        # whether this label is the end of a suffix
+        self.is_end = False
+
+        # a dictionary of child labels
+        self.children = {}
+
+        self.is_tld = False
+        self.is_suffix = False
+        self.metadata = None
+
+    def set_metadata(self, metadata):
+        self.metadata = metadata
+        if isinstance(metadata, _TLDInfo):
+            self.is_tld = True
+            self.is_suffix = False
+        elif isinstance(metadata, _SuffixInfo):
+            self.is_tld = False
+            self.is_suffix = True
+            self.is_end = True
+
+
+class _Trie(object):
+    """The trie object"""
+
+    def __init__(self):
+        self.root = _Node("")
+
+    def insert(self, suffix, metadata=None, is_public_suffix=None):
+        """Insert a suffix into the trie"""
+        node = self.root
+        tld_info = None
+
+        # Loop through each label in suffix in reverse order
+        labels = suffix.split(".")[::-1]
+        for label in labels:
+            found_node = node.children.get(label)
+            if found_node:
+                node = found_node
+            else:
+                new_node = _Node(label)
+                node.children[label] = new_node
+                node = new_node
+            if tld_info is None:
+                tld_info = node
+        # add node metadata
+        if is_public_suffix is not None:
+            assert tld_info is not None
+            assert metadata is None
+            metadata = _SuffixInfo(suffix, is_public_suffix, tld_info.metadata)
+        node.set_metadata(metadata)
+
+    def get_node(self, labels):
+        node = self.root
+        labels = labels[::-1]
+        for i, label in enumerate(labels):
+            tmp = node.children.get(label)
+            if tmp:
+                node = tmp
+        if node == self.root:
+            return None
+        return node
+
+    def get_longest_sequence(self, fqdn, puny_suffixes):
+        """
+        Returns the longest trie sequence found in the trie tree
+        """
+        node = self.root
+        labels = fqdn.split(".")
+        rev_labels = labels[::-1]
+
+        if is_puny_code(rev_labels[0]):
+            # if puny code tld is passed in, turn it to unicode and look it up
+            rev_labels[0] = puny_suffixes[rev_labels[0]]
+
+        for i, label in enumerate(rev_labels):
+            if label in node.children:
+                node = node.children[label]
+            else:
+                break
+        if node:
+            return node.metadata, labels[:-i]
+        return None
+
+
+@dataclass
+class _TLDInfo:
+    """  """
+    suffix: str
+    puny: str
+    delegation_link: str
+    tld_type: str
+    registry: str
+    create_date: str
+
+
+@dataclass
+class _SuffixInfo:
+    """  """
+    suffix: str
+    is_public: bool
+    root_suffix: object
+    # is_dynamic_dns
+
+
+##############################
+# Public API
+##############################
 
 
 @dataclass
@@ -59,10 +189,7 @@ class ParsedResult:
             self.ascii_ify_puny(self.tld_puny)
 
     def ascii_ify_puny(self, puny_host):
-        # puny_domain = "xn--crdit-agricole-ckb.xn--scurvrification-bnbe.com"
-        # print(puny_domain)
         unicode_host = idna.decode(puny_host)
-        # print(unicode_domain)
         return self.ascii_ify_unicode(unicode_host)
 
     def ascii_ify_unicode(self, unicode_host):
@@ -75,30 +202,9 @@ class ParsedResult:
         return None
 
 
-@dataclass
-class _TLDInfo:
-    """  """
-    suffix: str
-    puny: str
-    delegation_link: str
-    tld_type: str
-    registry: str
-    create_date: str
-
-
-@dataclass
-class _SuffixInfo:
-    """  """
-    suffix: str
-    is_public: bool
-    root_suffix: object
-    # is_dynamic_dns
-
-
 class Suffixes:
     # links to iana and icann sources for TLD / suffix information
     tld_list_url = "https://www.iana.org/domains/root/db"
-    gTLDs_url = "https://www.icann.org/resources/registries/gtlds/v2/gtlds.json"
     suffix_list_url = "https://publicsuffix.org/list/public_suffix_list.dat"
 
     def __init__(self, read_cache=True, save_cache=True, cache_path="suffix_data.cache"):
@@ -110,7 +216,8 @@ class Suffixes:
             self._puny_suffixes = puny_suffixes
         else:
             _logger.info("manually collecting and parsing domain suffix data")
-            self._suffix_trie = self.load_all_tlds()
+            tld_create_dates = self.load_tld_create_dates()
+            self._suffix_trie = self.load_all_tlds(tld_create_dates)
             self.load_manual_tlds()
             # create a punycode suffix reverse index
             self._puny_suffixes = {}
@@ -119,7 +226,7 @@ class Suffixes:
                 tld_node = root_tlds[tld].metadata
                 if tld_node.puny:
                     self._puny_suffixes[tld_node.puny] = tld_node.suffix
-            self.enrich_gtlds()
+            # self.enrich_gtlds()
             self.enrich_tld_suffixes()
 
             if save_cache and cache_path:
@@ -127,9 +234,23 @@ class Suffixes:
                 with open(cache_path, 'wb') as handle:
                     pickle.dump((self._suffix_trie, self._puny_suffixes), handle)
 
-    def load_all_tlds(self):
+    def load_tld_create_dates(self):
         """
-        Initialization Step 1: load all known TLDs from iana. The html page has the TLD
+        This resource file was created by parsing the individual IANA TLD pages. This takes way to long
+        to do every time the TLD data cache is being rebuilt (and I don't want to piss IANA off), so
+        I'm running this periodically and will update the source as new TLDs are created.
+        """
+        with open(tld_reg_date_resource, 'r') as handle:
+            lines = handle.readlines()
+        tld_create_dates = {}
+        for line in lines:
+            parts = line.strip().split(",")
+            tld_create_dates[parts[0]] = datetime.strptime(parts[1], '%Y-%m-%d').date()
+        return tld_create_dates
+
+    def load_all_tlds(self, tld_reg_dates):
+        """
+        Load all known TLDs from iana. The html page has the TLD
         type and the registry information so I have to parse the html to get the info.
         Yup, totally know this is brittle.
         """
@@ -165,8 +286,12 @@ class Suffixes:
                 puny_tld = re.search(PUNY_TLD_PATTERN, delegation_link)
                 if puny_tld:
                     puny_tld = PUNY_PREFIX + puny_tld.group(1)
+                # get the TLD registration date
+                tld_reg_date = tld_reg_dates.get(tld)
+                if tld_reg_date is None:
+                    _logger.warning(f"Registration date not found for TLD '{tld}' ")
                 # populate tld info
-                trie.insert(tld, _TLDInfo(tld, puny_tld, delegation_link, tld_type, registry, None))
+                trie.insert(tld, _TLDInfo(tld, puny_tld, delegation_link, tld_type, registry, tld_reg_date))
         return trie
 
     def load_manual_tlds(self):
@@ -175,43 +300,9 @@ class Suffixes:
         self._suffix_trie.insert(tld,
             _TLDInfo(tld, None, "https://datatracker.ietf.org/doc/html/rfc7686", "host_sufix", "Tor", "2015-09-15"))
 
-    def enrich_gtlds(self):
-        """
-        Initialization Step 2: get extra information about gTLDs, most notably the date the TLD was created
-        """
-        # enrich gTLDs with extra context
-        response = requests.get(self.gTLDs_url)
-        if response.status_code != 200:
-            raise Exception(f"{self.gTLDs_url} error {response.status_code}")
-        gtlds = response.json()
-        # gtld_updated = gtlds["updatedOn"]
-        # gtld_version = gtlds["version"]
-        for gtld in gtlds["gTLDs"]:
-            if gtld["applicationId"] is not None:
-                # only pull in active gTLDs
-                tld = gtld["gTLD"]
-                # check for puny tld
-                if tld[:4] == "xn--":
-                    tld = self._puny_suffixes[tld]
-                # make sure we know about this TLD
-                tld_node = self._suffix_trie.get_node([tld])
-                if tld_node is None:
-                    raise Exception(f"{tld} not in list of known TLDs")
-                # if the two registry values are different, add the icann value in parins
-                # - parses out punctuation and lower cases to check match
-                tld_node = tld_node.metadata
-                if (re.sub(r'[^\w\s]', '', tld_node.registry.lower()) !=
-                        re.sub(r'[^\w\s]', '', gtld["registryOperator"].lower())):
-                    tld_node.registry = f"{tld_node.registry} ({gtld['registryOperator']})"
-                # parse the create date
-                create_date = gtld["delegationDate"]
-                if create_date:
-                    create_date = datetime.strptime(create_date, '%Y-%m-%d').date()
-                tld_node.create_date = create_date
-
     def enrich_tld_suffixes(self):
         """
-        Initialization Step 3: pull in all known public suffixes
+        Pull in all known public suffixes
         TODO: A lot of these are know considered multi label TLDs, like "co.uk", but instead are suffixes used
               by dynamic DNS providers. I need to figure out a way to differentiate the two and add dynamic dns
               as extra metadata on a suffix.
@@ -271,9 +362,9 @@ class Suffixes:
     def parse(self, fqdn, skip_ip_check=False):
         if not skip_ip_check:
             if ipv4_pattern.match(fqdn):
-                return self.ip_result(fqdn, True)
+                return self._ip_result(fqdn, True)
             if ipv6_pattern.match(fqdn):
-                return self.ip_result(fqdn, False)
+                return self._ip_result(fqdn, False)
 
         node, labels = self._suffix_trie.get_longest_sequence(fqdn, self._puny_suffixes)
         if not node:
@@ -309,15 +400,18 @@ class Suffixes:
         else:
             raise Exception("Invalid type")
 
-    def ip_result(self, ip, is_ipv4):
+    def _ip_result(self, ip, is_ipv4):
         ret = ParsedResult(None, None, None, None, None, None, None,None, None, None, ip, None)
         ret.ipv4 = is_ipv4
         ret.ipv6 = not is_ipv4
         return ret
 
+
+
+
 def run_test():
     fqdn = "stuffandthings.com"
-    result = Suffixes(read_cache=True).parse(fqdn)
+    result = Suffixes(read_cache=False).parse(fqdn)
     print(result)
 
 
