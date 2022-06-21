@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional
 
 import requests
-from datetime import datetime
+from datetime import datetime, date
 from bs4 import BeautifulSoup
 import re
 import pickle
@@ -141,7 +141,7 @@ class _TLDInfo:
     puny: str
     tld_type: str
     registry: str
-    create_date: str
+    create_date: object
 
 
 @dataclass
@@ -172,7 +172,7 @@ class ParsedResult:
     tld_puny: str
     tld_type: str
     tld_registry: str
-    tld_create_date: str
+    tld_create_date: object
     effective_tld: str
     effective_tld_is_public: bool
     host_labels: List[str]
@@ -340,7 +340,7 @@ class Suffixes:
         # add in the onion TLD manually
         tld = "onion"
         self._suffix_trie.insert(tld,
-            _TLDInfo(tld, None, "host_suffix", "Tor", "2015-09-15"))
+            _TLDInfo(tld, None, "host_suffix", "Tor", datetime.strptime("2015-09-15", '%Y-%m-%d').date()))
 
     def enrich_tld_suffixes(self):
         """
