@@ -3,6 +3,14 @@ import time
 import requests
 from bs4 import BeautifulSoup
 
+"""
+The only place I found the TLD creation date was on the IANA page for each individual TLD.
+This would take WAY too long (and not to mention probably make IANA mad) if this was parsed
+each time the data cache was refreshed with live data. 
+
+So this script parses the TLD creation dates from the IANA html and then saves it in a separate 
+data file from the TLD data cache to be used when building the full TLD metadata data structure
+"""
 
 tld_list_url = "https://www.iana.org/domains/root/db"
 delegation_link_prefix = "https://www.iana.org"
@@ -67,7 +75,8 @@ def collect_tld_reg_date(tld, delegation_link):
 
 
 def main():
-    tld_reg_date_path = "tld_reg_dates_v1.txt"
+    version = "v1"
+    tld_reg_date_path = f"tld_reg_dates_{version}.txt"
     with open(tld_reg_date_path, "w") as handle:
         collect_tld_reg_dates(handle)
 

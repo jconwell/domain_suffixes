@@ -1,4 +1,6 @@
 import logging
+from typing import List, Optional
+
 import requests
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -173,33 +175,73 @@ class ParsedResult:
     tld_create_date: str
     effective_tld: str
     effective_tld_is_public: bool
-    registrable_domain: str
-    registrable_domain_host: str
-    fqdn: str
-    pqdn: str
+    host_labels: List[str]
     ipv4: bool = False
     ipv6: bool = False
 
-    def is_tld_multi_part(self):
+    @property
+    def registrable_domain(self) -> Optional[str]:
+        if self.is_fqdn:
+            return f"{self.host_labels[-1]}.{self.effective_tld}"
+        return None
+
+    @property
+    def registrable_domain_host(self) -> Optional[str]:
+        if self.is_fqdn:
+            return self.host_labels[-1]
+        return None
+
+    @property
+    def fqdn(self) -> str:
+        if self.is_fqdn:
+            return f"{'.'.join(self.host_labels)}.{self.effective_tld}"
+        # just return the IP address
+        return self.host_labels[0]
+
+    @property
+    def pqdn(self) -> Optional[str]:
+        if self.is_fqdn:
+            return '.'.join(self.host_labels[:-1])
+        return None
+
+    @property
+    def pqdn_labels(self) -> Optional[List[str]]:
+        if self.is_fqdn:
+            return self.host_labels[:-1]
+        return None
+
+    @property
+    def is_fqdn(self) -> bool:
+        return not self.is_ip
+
+    @property
+    def is_ip(self) -> bool:
+        return self.ipv4 or self.ipv6
+
+    @property
+    def is_tld_multi_part(self) -> bool:
         return self.tld != self.effective_tld
 
-    def is_punycode(self):
-        return self.tld_puny
+    @property
+    def is_punycode(self) -> bool:
+        return self.tld_puny is not None
 
-    def ascii_ify_tld(self):
-        if self.is_punycode():
-            self.ascii_ify_puny(self.tld_puny)
-
-    def ascii_ify_puny(self, puny_host):
-        unicode_host = idna.decode(puny_host)
-        return self.ascii_ify_unicode(unicode_host)
+    def ascii_ify_tld(self) -> str:
+        if self.is_punycode:
+            return self.ascii_ify_puny(self.tld_puny)
+        return self.tld
 
     @staticmethod
-    def ascii_ify_unicode(unicode_host):
+    def ascii_ify_puny(self, puny_host) -> str:
+        unicode_host = idna.decode(puny_host)
+        return ParsedResult.ascii_ify_unicode(unicode_host)
+
+    @staticmethod
+    def ascii_ify_unicode(unicode_host) -> str:
         ascii_host = unidecode(unicode_host)
         return ascii_host
 
-    def is_ipv4_private(self):
+    def is_ipv4_private(self) -> Optional[bool]:
         if self.ipv4:
             return private_ipv4_pattern.match(self.fqdn) is not None
         return None
@@ -352,6 +394,11 @@ class Suffixes:
     #     else:
     #         return tld_type_set
 
+    def get_all_tlds(self):
+        """ Just return the effective TLD for the FQDN """
+        tlds = [node for node in self._suffix_trie.root.children]
+        return tlds
+
     def get_tld(self, fqdn):
         """ Just return the effective TLD for the FQDN """
         node, _ = self._suffix_trie.get_longest_sequence(fqdn, self._puny_suffixes)
@@ -372,7 +419,7 @@ class Suffixes:
             index = fqdn.index("://")
             fqdn = fqdn[index + 3:]
 
-        node, labels = self._suffix_trie.get_longest_sequence(fqdn, self._puny_suffixes)
+        node, host_labels = self._suffix_trie.get_longest_sequence(fqdn, self._puny_suffixes)
         if not node:
             return None
         if isinstance(node, _TLDInfo):
@@ -384,10 +431,7 @@ class Suffixes:
                 node.create_date,
                 node.suffix,
                 True,
-                f"{labels[-1]}.{node.suffix}",
-                labels[-1],
-                f"{'.'.join(labels)}.{node.suffix}",
-                '.'.join(labels[:-1]))
+                host_labels)
         elif isinstance(node, _SuffixInfo):
             return ParsedResult(
                 node.root_suffix.suffix,
@@ -397,26 +441,20 @@ class Suffixes:
                 node.root_suffix.create_date,
                 node.suffix,
                 node.is_public,
-                f"{labels[-1]}.{node.suffix}",
-                labels[-1],
-                f"{'.'.join(labels)}.{node.suffix}",
-                '.'.join(labels[:-1]))
+                host_labels)
         else:
             raise Exception("Invalid type")
 
     @staticmethod
     def _ip_result(ip, is_ipv4):
-        ret = ParsedResult(None, None, None, None, None, None,None, None, None, ip, None)
-        ret.ipv4 = is_ipv4
-        ret.ipv6 = not is_ipv4
-        return ret
+        return ParsedResult(None, None, None, None, None, None, None, [ip], is_ipv4, not is_ipv4)
 
 
 def run_test():
-    suffixes = Suffixes(read_cache=True)
-    fqdn = "login.mail.stuffandthings.co.zz"
-    result = suffixes.parse(fqdn)
-    print(result)
+    fqdn = "65.22.218.1"
+    result = Suffixes(read_cache=True).parse(fqdn)
+    rd = result.registrable_domain
+    print(rd)
 
 
 def main():

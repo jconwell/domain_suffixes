@@ -3,6 +3,7 @@
 domain_suffixes
 ===============
 
+Note: *the public api is still being fleshed out and subject to change*
 
     Library for parsing out domain TLDs from FQDNs
 
@@ -11,7 +12,6 @@ domain_suffixes
 `domain_suffixes` downloads, parses, and merges the latest TLD and public domain suffix information from
 the following IANA and ICANN resources:
 
-- https://www.icann.org/resources/registries/gtlds/v2/gtlds.json
 - https://www.iana.org/domains/root/db
 - https://publicsuffix.org/list/public_suffix_list.dat
 
@@ -32,7 +32,6 @@ What Extra Metadata Is Included With TLDs?
  - sponsored, generic-restricted, generic, country-code, test, infrastructure
 - TLD creation date
 - TLD registry name
-- TLD delegation record URL
 - TLD puny code
 
 ----

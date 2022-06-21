@@ -11,6 +11,11 @@ Test Ideas:
     parse of url arguments in case passed in
     puny code
     ascii-ify puny code: puny_domain = "xn--crdit-agricole-ckb.xn--scurvrification-bnbe.com"
+    
+    is_fqdn
+    is_ip
+    pqdn_label_length
+    other new properties
 """
 
 
