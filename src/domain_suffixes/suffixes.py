@@ -387,6 +387,7 @@ class Suffixes:
         return None
 
     def parse(self, fqdn, skip_ip_check=False, skip_protocol_check=True):
+        fqdn = fqdn.lower()
         if not skip_ip_check:
             if ipv4_pattern.match(fqdn):
                 return self._ip_result(fqdn, True)
@@ -431,8 +432,9 @@ class Suffixes:
 
 
 def run_test():
-    suffixes = Suffixes(read_cache=False)
+    suffixes = Suffixes(read_cache=True)
     fqdn = "sts.amazonaws.com"
+    fqdn = "www.TYECHO.EPSILON.COM"
     result = suffixes.parse(fqdn)
     rd = result.registrable_domain
     print(rd)
