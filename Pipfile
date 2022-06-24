@@ -9,6 +9,7 @@ bs4 = "*"
 domain-suffixes = {editable = true, path = "."}
 idna = "*"
 unidecode = "*"
+tranco = "*"
 
 [dev-packages]
 tox = "*"
