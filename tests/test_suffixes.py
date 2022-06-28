@@ -123,6 +123,22 @@ def test_parse_private_multi_label_tld():
     assert result.pqdn == ""
 
 
+def test_parse_private_gt2_label_tld():
+    fqdn = "stuff.things.something.s3.dualstack.ap-southeast-1.amazonaws.com"
+    result = Suffixes(read_cache=True).parse(fqdn)
+    assert result.tld == "com"
+    assert result.tld_puny is None
+    assert result.tld_type == "generic"
+    assert result.tld_registry == "VeriSign Global Registry Services"
+    assert result.tld_create_date == datetime.strptime('1985-01-01', '%Y-%m-%d').date()
+    assert result.effective_tld == "s3.dualstack.ap-southeast-1.amazonaws.com"
+    assert result.effective_tld_is_public is False
+    assert result.registrable_domain == "something.s3.dualstack.ap-southeast-1.amazonaws.com"
+    assert result.registrable_domain_host == "something"
+    assert result.fqdn == fqdn
+    assert result.pqdn == "stuff.things"
+
+
 def test_parse_sub_domain():
     fqdn = "login.mail.stuffandthings.co.uk"
     result = Suffixes(read_cache=True).parse(fqdn)

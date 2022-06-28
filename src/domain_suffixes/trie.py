@@ -34,7 +34,7 @@ class _Trie(object):
 
         # Loop through each label in suffix in reverse order
         labels = suffix.split(".")[::-1]
-        for label in labels:
+        for i, label in enumerate(labels):
             found_node = node.children.get(label)
             if found_node:
                 node = found_node
@@ -44,10 +44,13 @@ class _Trie(object):
             else:
                 if metadata is None:
                     # if no metadata passed in, this is not a root TLD
-                    metadata = _SuffixInfo(f"{label}.{node.label}", is_public_suffix, root_metadata)
+                    node_suffix = ".".join(labels[0:i+1][::-1])
+                    metadata = _SuffixInfo(node_suffix, is_public_suffix, root_metadata)
                 new_node = _Node(label, metadata)
                 node.children[label] = new_node
                 node = new_node
+                if isinstance(metadata, _SuffixInfo):
+                    metadata = None
 
     def get_node(self, labels):
         node = self.root
