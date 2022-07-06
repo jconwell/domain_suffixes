@@ -203,14 +203,17 @@ def run_test():
     from domain_suffixes.tld_ranks import TLDRanker
     from tranco import Tranco
     suffixes = Suffixes(read_cache=True)
-    tranco = Tranco(cache=True, cache_dir='.tranco')
-    tld_ranker = TLDRanker(suffixes, tranco)
+    types = suffixes.tld_types()
 
-    fqdn = "costco.org.ac"
+    # tranco = Tranco(cache=True, cache_dir='.tranco')
+    # tld_ranker = TLDRanker(suffixes, tranco)
+
+    fqdn = "login.mail.stuffandthings.co.uk"
+    fqdn = "Amazon"
     result = suffixes.parse(fqdn)
     print(result.registrable_domain_host)
-    print(tld_ranker.tld(result.tld))
-    print(tld_ranker.effective_tld(result.effective_tld))
+    # print(tld_ranker.tld(result.tld))
+    # print(tld_ranker.effective_tld(result.effective_tld))
 
 
 def main():
