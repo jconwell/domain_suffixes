@@ -60,14 +60,13 @@ To give an example take the FQDN :code:`test.integration.api.somedomain.co.jp`
     :code:`fqdn` - test.integration.api.somedomain.co.jp
 
 ----
-How Is This Different Than :code:`tldextract`?
+How Is This Different Than `tldextract <https://github.com/john-kurkowski/tldextract>`_ ?
 ----
 
-If all you need is to parse out the TLD, or longest public domain suffix from a FQDN than tldextract will work
-just fine for you.
+tldextract is a great library if all you need is to parse out the TLD, or longest public domain suffix from a FQDN.
 
-I wrote this library to pull in a bit more metadata about each TLD/suffix to use mostly as features in machine
-learning projects, such as:
+I wrote this library to pull in a bit more contextual metadata about each TLD/suffix to use mostly as features in
+machine learning projects, such as:
 
 - International TLDs in both unicode and puny code format
 - The TLD type: generic, generic-restricted, country-code, sponsored, test, infrastructure, and host_suffix (.onion)
@@ -80,8 +79,11 @@ character used by legitimate domains, a common phishing technique.
 ----
 TO DO List
 ----
-A lot of the suffixes listed in https://publicsuffix.org/list/public_suffix_list.dat are not actually
+
+1. A lot of the suffixes listed in https://publicsuffix.org/list/public_suffix_list.dat are not actually
 recognized TLDs, but are suffixes used for Dynamic DNS (https://en.wikipedia.org/wiki/Dynamic_DNS).
 At some point I'd like parse that information and to pull out Dynamic DNS suffixes from actual TLDs.
+
+2. Probably more unit tests
 
 
