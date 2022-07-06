@@ -24,9 +24,9 @@ Terminology
 
 Coming up with a consistent naming convention for each specific part of a FQDN can get a little inconsistent and confusing.
 For example :code:`somedomain.co.jp`: many people would say the second level domain (SLD) is :code:`somedomain`,
-but actually the `2nd` level domain is :code:`.co` and `somedomain` is the `3rd` level domain.
+but actually the `2nd` level domain is :code:`.co` and :code:`somedomain` is the `3rd` level domain.
 
-Because of this the library uses a different naming convention in order to be explicitly clear and accurate.
+This library uses a different naming convention in order to be explicitly clear and accurate.
 
     :code:`tld` - the actual top level domain of the FQDN. This is the domain that is controlled by IANA.
 
@@ -80,10 +80,10 @@ character used by legitimate domains, a common phishing technique.
 TO DO List
 ----
 
-1. A lot of the suffixes listed in https://publicsuffix.org/list/public_suffix_list.dat are not actually
-recognized TLDs, but are suffixes used for Dynamic DNS (https://en.wikipedia.org/wiki/Dynamic_DNS).
-At some point I'd like parse that information and to pull out Dynamic DNS suffixes from actual TLDs.
+- A lot of the suffixes listed in https://publicsuffix.org/list/public_suffix_list.dat are not actually
+  recognized TLDs, but are suffixes used for Dynamic DNS (https://en.wikipedia.org/wiki/Dynamic_DNS).
+  At some point I'd like parse that information and to pull out Dynamic DNS suffixes from actual TLDs.
 
-2. Probably more unit tests
+- Probably more unit tests
 
 
