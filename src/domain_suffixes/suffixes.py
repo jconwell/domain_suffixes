@@ -6,13 +6,12 @@ import os
 from dataclasses import dataclass
 import idna
 from unidecode import unidecode
+from domain_suffixes.suffix_parser import build_suffixes
+from domain_suffixes.trie import save_trie, load_trie, _TLDInfo, _SuffixInfo
 
 __author__ = "John Conwell"
 __copyright__ = "John Conwell"
 __license__ = "MIT"
-
-from domain_suffixes.suffix_parser import build_suffixes
-from domain_suffixes.trie import save_trie, load_trie, _TLDInfo, _Trie, _SuffixInfo
 
 _logger = logging.getLogger(__name__)
 
@@ -84,7 +83,7 @@ class ParsedResult:
 
     @property
     def is_fqdn(self) -> bool:
-        return not self.is_ip
+        return not self.is_ip and len(self.host_labels) > 0
 
     @property
     def is_ip(self) -> bool:

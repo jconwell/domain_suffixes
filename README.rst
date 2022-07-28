@@ -18,9 +18,9 @@ as well as providing additional contextual information about TLDs, multi-label d
 
 The library also parses out the "second level domain" and all sub-domains in an FQDN.
 
-----
+-----------
 Terminology
-----
+-----------
 
 Coming up with a consistent naming convention for each specific part of a FQDN can get a little inconsistent and confusing.
 For example :code:`somedomain.co.jp`: many people would say the second level domain (SLD) is :code:`somedomain`,
@@ -59,26 +59,30 @@ To give an example take the FQDN :code:`test.integration.api.somedomain.co.jp`
 
     :code:`fqdn` - test.integration.api.somedomain.co.jp
 
-----
+-----------------------------------------------------------------------------------------
 How Is This Different Than `tldextract <https://github.com/john-kurkowski/tldextract>`_ ?
-----
+-----------------------------------------------------------------------------------------
 
 tldextract is a great library if all you need is to parse out the TLD, or longest public domain suffix from a FQDN.
 
-I wrote this library to pull in a bit more contextual metadata about each TLD/suffix to use mostly as features in
+This library pulls in a bit more contextual metadata about each TLD/suffix to use mostly as features in
 machine learning projects, such as:
 
 - International TLDs in both unicode and puny code format
 - The TLD type: generic, generic-restricted, country-code, sponsored, test, infrastructure, and host_suffix (.onion)
 - The date the TLD was created
 - In the case of multi-label effective TLDs, if it is public (owned by a Registrar) or private (owned by a private company)
-- If the TLD (or any label in the FQDN) is puny code encoded, the ascii'ification of the unicode. This can be
-useful for identifying registrable domains that using unicode characters that are very similar to the ascii
-character used by legitimate domains, a common phishing technique.
+- If the TLD (or any label in the FQDN) is puny code encoded, the ascii'ification of the unicode. This can be useful for identifying registrable domains that using unicode characters that are very similar to the ascii character used by legitimate domains, a common phishing technique.
 
-----
+-----
+Usage
+-----
+
+put examples here
+
+----------
 TO DO List
-----
+----------
 
 - A lot of the suffixes listed in https://publicsuffix.org/list/public_suffix_list.dat are not actually
   recognized TLDs, but are suffixes used for Dynamic DNS (https://en.wikipedia.org/wiki/Dynamic_DNS).

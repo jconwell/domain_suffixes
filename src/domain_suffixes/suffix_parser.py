@@ -116,7 +116,9 @@ def _enrich_tld_suffixes(_suffix_trie):
     is_public_suffix = True
     for i, line in enumerate(suffix_list):
         if line == "// ===BEGIN PRIVATE DOMAINS===":
+            # set flag and continue
             is_public_suffix = False
+            continue
         elif len(line) == 0 or line[:3] == "// ":
             # skip comments
             continue
