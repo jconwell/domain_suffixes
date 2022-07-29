@@ -14,7 +14,7 @@ data file from the TLD data cache to be used when building the full TLD metadata
 
 tld_list_url = "https://www.iana.org/domains/root/db"
 delegation_link_prefix = "https://www.iana.org"
-reg_date_prefix: "Registration date"
+reg_date_prefix = "Registration date"
 revoked_tld = "Not assigned"
 reg_date_pattern = re.compile(r'.+Registration date \d{4}-\d{2}-\d{2}.+')
 
