@@ -59,26 +59,43 @@ To give an example take the FQDN :code:`test.integration.api.somedomain.co.jp`
 
     :code:`fqdn` - test.integration.api.somedomain.co.jp
 
------------------------------------------------------------------------------------------
-How Is This Different Than `tldextract <https://github.com/john-kurkowski/tldextract>`_ ?
------------------------------------------------------------------------------------------
 
-tldextract is a great library if all you need is to parse out the TLD, or longest public domain suffix from a FQDN.
+-----
+Install
+-----
 
-This library pulls in a bit more contextual metadata about each TLD/suffix to use mostly as features in
-machine learning projects, such as:
+Latest release on Pypi
 
-- International TLDs in both unicode and puny code format
-- The TLD type: generic, generic-restricted, country-code, sponsored, test, infrastructure, and host_suffix (.onion)
-- The date the TLD was created
-- In the case of multi-label effective TLDs, if it is public (owned by a Registrar) or private (owned by a private company)
-- If the TLD (or any label in the FQDN) is puny code encoded, the ascii'ification of the unicode. This can be useful for identifying registrable domains that using unicode characters that are very similar to the ascii character used by legitimate domains, a common phishing technique.
+:code:`pip install domain-suffixes`
 
 -----
 Usage
 -----
 
-put examples here
+.. code-block:: python
+
+    from domain_suffixes.suffixes import Suffixes
+
+    suffixes = Suffixes(read_cache=True)
+    fqdn = "login.mail.stuffandthings.co.uk"
+    result = suffixes.parse(fqdn)
+    print(result.registrable_domain_host)
+
+------------------------------------------------
+How is domain_suffixes different than tldextract
+------------------------------------------------
+
+`tldextract <https://github.com/john-kurkowski/tldextract>`_ is a great library if you need is to parse
+apart a FQDN to get it's subdomain, domain, or full suffix.
+
+domain_suffixes adds a bit more contextual metadata about each TLD/suffix to use mostly as features in
+machine learning projects, such as:
+
+- International TLDs in both unicode and puny code format
+- The TLD type: generic, generic-restricted, country-code, sponsored, test, infrastructure, and host_suffix (.onion)
+- The date the TLD was registered by ICANN
+- In the case of multi-label effective TLDs, is it public (owned by a Registrar) or private (owned by a private company)
+- If the TLD (or any label in the FQDN) is puny code encoded, the ascii'ification of the unicode. This can be useful for identifying registrable domains that using unicode characters that are very similar to the ascii character used by legitimate domains, a common phishing technique.
 
 ----------
 TO DO List
