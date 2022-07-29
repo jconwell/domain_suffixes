@@ -5,6 +5,14 @@ Domain Suffixes
 
 *Note: the API is still being fleshed out and subject to change*
 
+-------
+Install
+-------
+
+Latest release on Pypi
+
+:code:`pip install domain-suffixes`
+
 ----
 Goal
 ----
@@ -58,15 +66,6 @@ To give an example take the FQDN :code:`test.integration.api.somedomain.co.jp`
     :code:`pqdn` - test.integration.api
 
     :code:`fqdn` - test.integration.api.somedomain.co.jp
-
-
------
-Install
------
-
-Latest release on Pypi
-
-:code:`pip install domain-suffixes`
 
 -----
 Usage
