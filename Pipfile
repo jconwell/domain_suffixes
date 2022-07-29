@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 requests = "*"
 bs4 = "*"
-domain-suffixes = {editable = true, path = "."}
+domain_suffixes = {editable = true, path = "."}
 idna = "*"
 unidecode = "*"
 tranco = "*"
