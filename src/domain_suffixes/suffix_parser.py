@@ -38,8 +38,11 @@ def _load_tld_create_dates():
     to do every time the TLD data cache is being rebuilt (and I don't want to piss IANA off), so
     I'm running this periodically and will update the source as new TLDs are created.
     """
-    with open(tld_reg_date_resource, 'r') as handle:
-        lines = handle.readlines()
+    import importlib.resources
+    import domain_suffixes as ds
+    with importlib.resources.path(ds, tld_reg_date_resource) as resource:
+        with open(resource, 'r') as handle:
+            lines = handle.readlines()
     tld_create_dates = {}
     for line in lines:
         parts = line.strip().split(",")

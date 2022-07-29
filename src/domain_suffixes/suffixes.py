@@ -201,14 +201,14 @@ class Suffixes:
 def run_test():
     from domain_suffixes.tld_ranks import TLDRanker
     from tranco import Tranco
-    suffixes = Suffixes(read_cache=True)
+    suffixes = Suffixes(read_cache=False)
     types = suffixes.tld_types()
 
     # tranco = Tranco(cache=True, cache_dir='.tranco')
     # tld_ranker = TLDRanker(suffixes, tranco)
 
     fqdn = "login.mail.stuffandthings.co.uk"
-    fqdn = "Amazon"
+    # fqdn = "Amazon"
     result = suffixes.parse(fqdn)
     print(result.registrable_domain_host)
     # print(tld_ranker.tld(result.tld))
